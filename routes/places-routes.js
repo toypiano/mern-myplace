@@ -1,4 +1,5 @@
 const express = require('express');
+const { check } = require('express-validator');
 
 const {
   getPlaceById,
@@ -10,13 +11,27 @@ const {
 
 const router = express.Router();
 
-router.get('/', getPlaceById);
+router.get('/:pid', getPlaceById);
 
 router.get('/user/:uid', getPlacesByUserId);
 
-router.post('/', createPlace);
+// You need to validate the req body before writing to the database.
 
-router.patch('/:pid', updatePlace);
+router.post(
+  '/',
+  [
+    check('title').not().isEmpty(),
+    check('description').isLength({ min: 5 }),
+    check('address').not().isEmpty(),
+  ],
+  createPlace
+);
+
+router.patch(
+  '/:pid',
+  [check('title').not().isEmpty(), check('description').isLength({ min: 5 })],
+  updatePlace
+);
 
 router.delete('/:pid', deletePlace);
 

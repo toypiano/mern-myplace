@@ -1,3 +1,5 @@
+const { validationResult } = require('express-validator');
+
 const HttpError = require('../models/handle-error');
 const User = require('../models/user');
 
@@ -17,6 +19,18 @@ const getUsers = async (req, res, next) => {
 };
 
 const signup = async (req, res, next) => {
+  // We added a middleware to the route where we receive user input
+  // validationResult extracts validation errors from req object
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    console.log(errors);
+    return next(
+      new HttpError(
+        'Invalid inputs entered. Please check your data and try again',
+        422
+      )
+    );
+  }
   const { name, email, password } = req.body;
 
   // check if the user with provided email already exists

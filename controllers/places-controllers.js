@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { validationResult } = require('express-validator');
 
 const getCoords = require('../utils/location');
 const HttpError = require('../models/handle-error');
@@ -46,6 +47,15 @@ const getPlacesByUserId = async (req, res, next) => {
 };
 
 const createPlace = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    console.log(errors);
+    return next(
+      new HttpError('Invalid. Please check your input and try again.', 422)
+    );
+  }
+
   const { title, description, address, creator } = req.body;
   let coords;
   try {
@@ -101,6 +111,15 @@ const createPlace = async (req, res, next) => {
 };
 
 const updatePlace = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    console.log(errors);
+    return next(
+      new HttpError('Invalid input. Please check your data and try again.', 422)
+    );
+  }
+
   const { title, description } = req.body;
   const { pid } = req.params;
 
@@ -118,7 +137,7 @@ const updatePlace = async (req, res, next) => {
     await updatingPlace.save();
   } catch (err) {
     return next(
-      new HttpError('Could not update the place. Please try again later', 500)
+      new HttpError('Invalid input. Please check your data and try again.', 422)
     );
   }
 
