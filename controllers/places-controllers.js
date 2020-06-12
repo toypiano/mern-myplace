@@ -1,7 +1,9 @@
+require('dotenv').config();
+
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
 
-const getCoords = require('../utils/location');
+const { getCoords, findPlace } = require('../utils/location');
 const HttpError = require('../models/handle-error');
 const Place = require('../models/place');
 const User = require('../models/user');
@@ -58,16 +60,22 @@ const createPlace = async (req, res, next) => {
 
   const { title, description, address, creator } = req.body;
   let coords;
+  let formattedAddress;
+  let photoReference;
   try {
-    coords = await getCoords(address);
+    const { formatted_address, geometry, photos } = await findPlace(address);
+    coords = geometry.location;
+    formattedAddress = formatted_address;
+    photoReference = photos[0].photo_reference;
   } catch (err) {
     return next(err);
   }
+  const placePhotoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoReference}&key=${process.env.API_KEY}`;
   const createdPlace = new Place({
     title,
     description,
-    address,
-    image: 'https://placem.at/places?w=800&random=1',
+    address: formattedAddress,
+    image: placePhotoUrl,
     coords,
     creator,
   });
@@ -105,9 +113,11 @@ const createPlace = async (req, res, next) => {
     );
   }
 
-  return res
-    .status(200)
-    .json({ place: createdPlace.toObject({ getters: true }) });
+  return res.status(200).json({
+    place: {
+      ...createdPlace.toObject({ getters: true }),
+    },
+  });
 };
 
 const updatePlace = async (req, res, next) => {
@@ -151,7 +161,10 @@ const deletePlace = async (req, res, next) => {
 
   let deletingPlace;
   try {
-    deletingPlace = Place.findById(pid).populate('creator');
+    // Don't forget to add "await" in front of mongoose methods
+    // Replace ObjectId in creator field with the pointer to the referencing document
+    // (User with matching ObjectId)
+    deletingPlace = await Place.findById(pid).populate('creator');
   } catch (err) {
     return next(
       new HttpError(
@@ -173,9 +186,11 @@ const deletePlace = async (req, res, next) => {
   try {
     const session = await mongoose.startSession();
     session.startTransaction();
-    await deletingPlace.remove({ session });
+    // this is local operation so we don't need await
     deletingPlace.creator.places.pull(deletingPlace);
     await deletingPlace.creator.save({ session });
+    // deletingPlace.remove({ session }) is deprecated
+    await Place.deleteOne(deletingPlace, { session });
     await session.commitTransaction();
   } catch (err) {
     return next(

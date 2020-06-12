@@ -24,4 +24,31 @@ async function getCoords(address) {
   return coords;
 }
 
-module.exports = getCoords;
+/**
+ * @typedef {Object} Place
+ * @property {string} formatted_address
+ * @property {{location: {lat:number, lng:number}, viewport: Object}} geometry
+ * @property {[{height: number, width: number, html_attributions: [string], photo_reference: string}]} photos
+ */
+
+/**
+ * https://developers.google.com/places/web-service/search
+ * Takes place text and returns a place
+ * @param {string} placeText
+ * @returns {Place}
+ */
+async function findPlace(placeText) {
+  const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
+    placeText
+  )}&inputtype=textquery&fields=photos,geometry,formatted_address&key=${
+    process.env.API_KEY
+  }`;
+  const { data } = await axios.get(url);
+  console.log(data);
+  return data.candidates[0];
+}
+
+module.exports = {
+  getCoords,
+  findPlace,
+};
